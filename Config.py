@@ -36,10 +36,10 @@ for r, d, f in os.walk(Final_Dir2):
             os.remove(os.path.join(r, file))
     break
 
-
 udaExec = teradata.UdaExec (appName="Config Report", version="1.0",
         logConsole=False)
-session = udaExec.connect(method="ODBC", system=Sys, username=User, password=PassWd);
+
+session = udaExec.connect(method="ODBC", Authentication="LDAP", system=Sys, username=User, password=PassWd);
 
 report_name = "Config Report"
 
@@ -111,9 +111,6 @@ for r, d, f in os.walk(thisdir):
                      print("            Table has " + str(Table_column_count) + ", line " + str(line_number) + " has " + str(col_number))
                      file_error="Y"
 
-                #check to see if there are no spaces and comma and no commas and spaces
-                #Value=(" ,")
-
                 CSV=str(line)
                 RES=re.search(r" \' \?\',", CSV)
                 if RES:
@@ -150,8 +147,7 @@ Proc_Files="\n"
 
 for File_Name in file_list:
     New_File=File_Name .split(':')[0]
-    #New_File_CSV=New_File + ".csv"
-    #New_File_CSV = ("C:\Python3_7\My Scripts\Config Solution\Final_Files\\" + New_File + ".csv")
+
     New_File_CSV = (Dest + New_File + ".csv")
     Old_File=New_File + File_Name .split(':')[1] + ".csv"
 

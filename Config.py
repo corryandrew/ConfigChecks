@@ -9,7 +9,6 @@ import csv
 import os, errno, os.path, shutil
 #import glob
 import shutil
-from Reports import *
 
 Argu=len(sys.argv)
 
@@ -47,10 +46,10 @@ report_name = "Config Report"
 num=0
 
 Dest=(thisdir + "\Last_Line\\")
-#Dest=("C:\Python3_7\My Scripts\Config Solution\Last_Line\\")
 
 ProbFiles=":\n"
 HaveCSV="N"
+print("")
 
 #Checks
 files = os.listdir(thisdir)
@@ -72,7 +71,7 @@ for f in files:
 if HaveCSV == 'N':
   print("No CSV files to be processed")
   sys.exit(2)
-  
+   
 # r=root, d=directories, f = files
 for r, d, f in os.walk(thisdir):
     for file in f:
@@ -149,17 +148,12 @@ unique_list=set(file_list)
 Dest=(thisdir + "\Final_Files\\")
 Proc_Files="\n"
 
-#print(unique_list)
-print("file list!!!!!!!")
-print(file_list)
-
-for File_Name in file_list: #unique_list:
+for File_Name in file_list:
     New_File=File_Name .split(':')[0]
     #New_File_CSV=New_File + ".csv"
     #New_File_CSV = ("C:\Python3_7\My Scripts\Config Solution\Final_Files\\" + New_File + ".csv")
     New_File_CSV = (Dest + New_File + ".csv")
     Old_File=New_File + File_Name .split(':')[1] + ".csv"
-    print("Old_File == " + Old_File)
 
     file_exists=os.path.isfile(New_File_CSV)
     Proc_Files=(Proc_Files + Old_File + "\n")

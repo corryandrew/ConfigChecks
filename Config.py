@@ -7,20 +7,40 @@ import sys
 import base64
 import csv
 import os, errno, os.path, shutil
-#import glob
-import shutil
+import configparser
+import datetime
 
-Argu=len(sys.argv)
+def check_date(DateTime, Num):    
+  error="N"
+  format_date="%Y-%m-%d %H:%M:%S"
+  try:
+      if DateTime != datetime.datetime.strptime(DateTime, format_date).strftime(format_date):
+        raise ValueError
+  except ValueError:
+       error="Y"
 
-#What about Database name E.G.   PRD_STG_USR
-if Argu < 4:
-    print("Need to pass in 3 parameters in order of Database name, username and user password")
-    print("E.G.  CWHDEV2 smith002 letmein")
-    sys.exit(2)
+  if error == "Y":
+      try:
+          format_date="%Y/%m/%d %H:%M:%S"
+          if DateTime == datetime.datetime.strptime(DateTime, format_date).strftime(format_date):
+              error="N"
+          else:
+              raise ValueError
+      except ValueError:
+          error="Y"
 
-Sys=sys.argv[1]
-User=sys.argv[2]
-PassWd=sys.argv[3]
+  if error=="Y":
+      print(" Date issue, field " + str(Num) + " on line " + str(line_number) + " DateTime = " + DateTime)
+
+      
+  return error
+  
+config = configparser.ConfigParser()
+config.read("C:\Python3_7\My Scripts\Config Solution\db.cnfg")
+Sys = config.get('DB connection info','Sys')
+User = config.get('DB connection info','User')
+PassWd = config.get('DB connection info','PassWd')
+
  
 os.chdir("C:\Python3_7\My Scripts\Config Solution")
 thisdir = os.getcwd()
@@ -36,19 +56,19 @@ for r, d, f in os.walk(Final_Dir2):
             os.remove(os.path.join(r, file))
     break
 
+PassWd2='\"'+ PassWd + '\"'
+
 udaExec = teradata.UdaExec (appName="Config Report", version="1.0",
         logConsole=False)
 
-session = udaExec.connect(method="ODBC", Authentication="LDAP", system=Sys, username=User, password=PassWd);
+session = udaExec.connect(method="ODBC", Authentication="LDAP", system=Sys, username=User, password=PassWd2);
 
 report_name = "Config Report"
-
 num=0
-
 Dest=(thisdir + "\Last_Line\\")
-
 ProbFiles=":\n"
 HaveCSV="N"
+file_list=[]
 print("")
 
 #Checks
@@ -62,10 +82,10 @@ for f in files:
         Last_Line=(line)
 
       if not "\n" in Last_Line:
-        print(f + "  file, has no backslash n in the last line")
+        print(" No backslash n in the last line for file " + f)
         print("")
         read_file.close()
-        ProbFiles=(ProbFiles + "Moved " + f + " to Last_Line directory \n")
+        ProbFiles=(ProbFiles + "  Moved " + f + " to Last_Line directory \n")
         shutil.move(thisdir+"\\"+f , Dest+f)
 
 if HaveCSV == 'N':
@@ -92,7 +112,7 @@ for r, d, f in os.walk(thisdir):
             for row in session.execute(sqlquery):
              Table_column_count = (row[0])
              Table_column_count = Table_column_count -3
-    #added "-3" because there appears to be 3 extra columns for USR_OFFG_COMB_CNFG on Prod
+    #added "-3" because there appears to be 3 extra columns for USR tables on Prod
             Len=len(file)
             read_file=open(file)
             read_file2=csv.reader(read_file, delimiter=",")
@@ -107,26 +127,72 @@ for r, d, f in os.walk(thisdir):
                 
                 col_number=len(line)
                 if Table_column_count != col_number:
-                     print("  Delimiter count does not match table column count " + file + ", line " + str(line_number))
+                     print(" Delimiter count does not match table column count " + file + ", line " + str(line_number))
                      print("            Table has " + str(Table_column_count) + ", line " + str(line_number) + " has " + str(col_number))
                      file_error="Y"
 
                 CSV=str(line)
                 RES=re.search(r" \' \?\',", CSV)
                 if RES:
-                    print("  Space and comma issue " + file + ", line " + str(line_number))
+                    print(" Space and comma issue, line " + str(line_number))
                     SPACE_COMMA='Y'
                     file_error="Y"
                 
                 RES=re.search(r", \' \?\'", CSV)
                 if RES and SPACE_COMMA == 'N':
-                    print("Comma and space issue " + file + ", line " + str(line_number))
+                    print(" Comma and space issue, line " + str(line_number))
                     file_error="Y"
+
+                Rec=str(line).split(', ')
+
+                if "usr_prod_comb_" in file:
+                    
+                    DateTime=Rec[5].strip('\'')
+                    Num=6
+                    error_res=check_date(DateTime, Num)
+                    if error_res == "Y":
+                        file_error="Y"
+                      
+                    DateTime=Rec[8].strip('\'')
+                    Num=9
+                    if DateTime != '?':
+                        error_res=check_date(DateTime, Num)
+                        if error_res == "Y":
+                            file_error="Y"
+
+                elif  "usr_offg_comb_" in file:
+                    DateTime=Rec[4].strip('\'')
+                    Num=5
+                    error_res=check_date(DateTime, Num)
+                    if error_res == "Y":
+                        file_error="Y"
+
+                    DateTime=Rec[5].strip('\'')
+                    Num=6
+                    error_res=check_date(DateTime, Num)
+                    if error_res == "Y":
+                        file_error="Y"                    
+
+                    DateTime=Rec[6].strip('\'')
+                    Num=7
+                    error_res=check_date(DateTime, Num)
+                    if error_res == "Y":
+                        file_error="Y"
+
+                    DateTime=Rec[8].strip('\'')
+                    Num=9
+                    error_res=check_date(DateTime, Num)
+                    if error_res == "Y":
+                        file_error="Y"
+                        
+                else:
+                    print("Unknown file " + file)
+                    file_error="Y"
+                    
                 line_number= line_number + 1
             
-#create an array to hold unique list of names (going to write all the files with a common name
-#to the array file
-
+            #create an array to hold unique list of names (going to write all the files with a common name
+            #to the array)
             if file_error == "N":    
               if (num) == 0:
                   file_list = [JName + ":" + JNum]
@@ -145,22 +211,23 @@ unique_list=set(file_list)
 Dest=(thisdir + "\Final_Files\\")
 Proc_Files="\n"
 
-for File_Name in file_list:
-    New_File=File_Name .split(':')[0]
+if len(file_list):
+  for File_Name in file_list:
+      New_File=File_Name .split(':')[0]
 
-    New_File_CSV = (Dest + New_File + ".csv")
-    Old_File=New_File + File_Name .split(':')[1] + ".csv"
+      New_File_CSV = (Dest + New_File + ".csv")
+      Old_File=New_File + File_Name .split(':')[1] + ".csv"
 
-    file_exists=os.path.isfile(New_File_CSV)
-    Proc_Files=(Proc_Files + Old_File + "\n")
+      file_exists=os.path.isfile(New_File_CSV)
+      Proc_Files=(Proc_Files + Old_File + "\n")
     
-    if not file_exists:
-      open(New_File_CSV, "a")
+      if not file_exists:
+        open(New_File_CSV, "a")
 
-    with open(Old_File) as f:
-        with open(New_File_CSV, "a") as new:
-          for line in f:
-              new.write(line)
+      with open(Old_File) as f:
+          with open(New_File_CSV, "a") as new:
+            for line in f:
+                new.write(line)
 
 print("\n" *4)
 print("Files that were processed" + Proc_Files)

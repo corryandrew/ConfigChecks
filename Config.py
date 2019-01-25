@@ -214,10 +214,20 @@ Proc_Files="\n"
 if len(file_list):
   for File_Name in file_list:
       New_File=File_Name .split(':')[0]
-
-      New_File_CSV = (Dest + New_File + ".csv")
+      #New_File_CSV = (Dest + New_File + ".csv")
       Old_File=New_File + File_Name .split(':')[1] + ".csv"
 
+      sqlquery = ['''
+	     	     locking row for access select source_object,source_object || '_' || (next_seq (format '9999')) || '.csv' as next_file_name_version from (select
+                      source_object, max(file_name_seq)+1 as next_seq from prd_tec_ctl.tc_file
+                      f,prd_tec_ctl.tc_file_type ft where f.file_type_id = ft.file_type_id and (f.file_type_id like 'usr%' or f.file_type_id like 'map%') and file_status in
+                      ('Archived', 'Removed') group by 1) x
+                      where SOURCE_OBJECT  = ''' "'" + New_File + "'"
+	        ]
+
+      for row in session.execute(sqlquery):
+          New_File_CSV =(Dest + (row[1]))
+                
       file_exists=os.path.isfile(New_File_CSV)
       Proc_Files=(Proc_Files + Old_File + "\n")
     
@@ -234,3 +244,4 @@ print("Files that were processed" + Proc_Files)
 
 print("" *2)
 print("Files that were not processed" + ProbFiles)
+

@@ -10,6 +10,20 @@ import os, errno, os.path, shutil
 import configparser
 import datetime
 
+
+os.system('cls')
+print("\n" *4)
+print("                                                                   CSV Checker ")
+print("                                                                   ============")
+print("                                                Tests USR_PROD_COMB and USR_OFFG_COMB CSV files only ")
+print("                                                ----------------------------------------------------")
+#print("\n" *1)
+print("                                                1. Checks EOF blank line. ")
+print("                                                2. Checks matching number of columns per file type. ")
+print("                                                3. Checks for space and comma issues. ")
+print("                                                4. Checks for date format issues. ")
+print("\n" *1)
+
 def check_date(DateTime, Num):    
   error="N"
   format_date="%Y-%m-%d %H:%M:%S"
@@ -31,16 +45,13 @@ def check_date(DateTime, Num):
 
   if error=="Y":
       print(" Date issue, field " + str(Num) + " on line " + str(line_number) + " DateTime = " + DateTime)
-
-      
   return error
-  
+
 config = configparser.ConfigParser()
 config.read("C:\Python3_7\My Scripts\Config Solution\db.cnfg")
 Sys = config.get('DB connection info','Sys')
 User = config.get('DB connection info','User')
 PassWd = config.get('DB connection info','PassWd')
-
  
 os.chdir("C:\Python3_7\My Scripts\Config Solution")
 thisdir = os.getcwd()
@@ -48,6 +59,8 @@ thisdir = os.getcwd()
 Final_Dir2=("C:\Python3_7\My Scripts\Config Solution\Final_Files")
 if not os.path.exists(Final_Dir2):
   os.makedirs(Final_Dir2)
+##Jeff added creation of last line dir
+  os.makedirs(thisdir + "\Last_Line\\")
 
 #NB NB, user must open the "cmd" as administrator (right click on "Run as administrator")
 for r, d, f in os.walk(Final_Dir2):
@@ -60,16 +73,28 @@ PassWd2='\"'+ PassWd + '\"'
 
 udaExec = teradata.UdaExec (appName="Config Report", version="1.0",
         logConsole=False)
-
 session = udaExec.connect(method="ODBC", Authentication="LDAP", system=Sys, username=User, password=PassWd2);
 
 report_name = "Config Report"
 num=0
 Dest=(thisdir + "\Last_Line\\")
-ProbFiles=":\n"
+ProbFiles="\n"
 HaveCSV="N"
+TotalCSV=0
 file_list=[]
 print("")
+
+allfiles = os.listdir(thisdir)
+for all_f in allfiles:
+    if ".csv" in all_f:
+      TotalCSV = TotalCSV + 1
+
+print("Testing "+ str(TotalCSV)+ " CSV file(s)")
+#print("=================================")
+print("" *5)
+
+#print("Starting Tests...")
+#print("" *5)
 
 #Checks
 files = os.listdir(thisdir)
@@ -82,14 +107,20 @@ for f in files:
         Last_Line=(line)
 
       if not "\n" in Last_Line:
-        print(" No backslash n in the last line for file " + f)
+        print("EOF blank line test. Files moved to \\Last_Line folder")
+        print("----------------------------------------------------")
+        print("No backslash n detected in the last line of file: " + "\n" + f)
         print("")
         read_file.close()
-        ProbFiles=(ProbFiles + "  Moved " + f + " to Last_Line directory \n")
+        #ProbFiles=(ProbFiles + "  Moved " + f + " to Last_Line directory \n")
+        ProbFiles=(ProbFiles + f +"\n")
         shutil.move(thisdir+"\\"+f , Dest+f)
+
+
 
 if HaveCSV == 'N':
   print("No CSV files to be processed")
+  print("============================")
   sys.exit(2)
    
 # r=root, d=directories, f = files
@@ -98,7 +129,7 @@ for r, d, f in os.walk(thisdir):
         if ".csv" in file:
             currt_dir=os.getcwd()
             file_error="N"
-            Fname=file .split('.')[0]           
+            Fname=file .split('.')[0]
             JName=Fname .split('_OT')[0]
             JNum="_OT" + Fname .split('_OT')[1]
             
@@ -119,11 +150,11 @@ for r, d, f in os.walk(thisdir):
 
             print("")
             print("Checking file " + file)
-            print("==============" + "=" *Len)
+            print("-------------" + "-" *Len)
             
             line_number=1
             for line in read_file2:
-                SPACE_COMMA='N'
+                #SPACE_COMMA='N'
                 
                 col_number=len(line)
                 if Table_column_count != col_number:
@@ -132,16 +163,20 @@ for r, d, f in os.walk(thisdir):
                      file_error="Y"
 
                 CSV=str(line)
-                RES=re.search(r" \' \?\',", CSV)
-                if RES:
+                
+                #RES=re.search(r" \' \?\',", CSV)
+                re_sp_comma=re.search(r"(,\' | \',)", CSV)
+                if re_sp_comma:
                     print(" Space and comma issue, line " + str(line_number))
-                    SPACE_COMMA='Y'
+                    #SPACE_COMMA='Y'
                     file_error="Y"
                 
-                RES=re.search(r", \' \?\'", CSV)
-                if RES and SPACE_COMMA == 'N':
-                    print(" Comma and space issue, line " + str(line_number))
-                    file_error="Y"
+                #RES=re.search(r", \' \?\'", CSV)
+#                re_comma_sp=re.search(", ", CSV)
+                #if RES and SPACE_COMMA == 'N':
+#                if re_comma_sp:
+#                    print(" Comma and space issue, line " + str(line_number))
+#                    file_error="Y"
 
                 Rec=str(line).split(', ')
 
@@ -171,7 +206,7 @@ for r, d, f in os.walk(thisdir):
                     Num=6
                     error_res=check_date(DateTime, Num)
                     if error_res == "Y":
-                        file_error="Y"                    
+                        file_error="Y"
 
                     DateTime=Rec[6].strip('\'')
                     Num=7
@@ -211,6 +246,7 @@ unique_list=set(file_list)
 Dest=(thisdir + "\Final_Files\\")
 Proc_Files="\n"
 
+
 if len(file_list):
   for File_Name in file_list:
       New_File=File_Name .split(':')[0]
@@ -240,8 +276,13 @@ if len(file_list):
                 new.write(line)
 
 print("\n" *4)
-print("Files that were processed" + Proc_Files)
+print("Files that were processed. It is now joined and sequenced in \\Final_Files folder:")
+print("==================================================================================")
+print(Proc_Files)
 
 print("" *2)
-print("Files that were not processed" + ProbFiles)
+print("Files that were NOT processed:")
+print("=============================")
+print(ProbFiles)
+
 

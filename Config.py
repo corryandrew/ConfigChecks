@@ -22,6 +22,9 @@ print("                                                1. Checks EOF blank line.
 print("                                                2. Checks matching number of columns per file type. ")
 print("                                                3. Checks for space and comma issues. ")
 print("                                                4. Checks for date format issues. ")
+print("                                                5. Checks that the 1st value in each record has 8 records ")
+print("                                                   Also checks there are 8 unique occurrences in column 12 ")
+print("                                                   Any row that failes check 5 won't fail the file, it is a warning")
 print("\n" *1)
 
 def check_date(DateTime, Num):    
@@ -151,6 +154,11 @@ for r, d, f in os.walk(thisdir):
             print("")
             print("Checking file " + file)
             print("-------------" + "-" *Len)
+
+            Prev_Val="-18911"
+            Chars_8_Check_Num=0
+            Read_First_Line="N"
+            Value_Array=['DUMMY12789','BS', 'BBC', 'BC', 'BST', 'BT', 'CU', 'PFG', 'SOD']
             
             line_number=1
             for line in read_file2:
@@ -164,20 +172,11 @@ for r, d, f in os.walk(thisdir):
 
                 CSV=str(line)
                 
-                #RES=re.search(r" \' \?\',", CSV)
                 re_sp_comma=re.search(r"(,\' | \',)", CSV)
                 if re_sp_comma:
                     print(" Space and comma issue, line " + str(line_number))
-                    #SPACE_COMMA='Y'
                     file_error="Y"
                 
-                #RES=re.search(r", \' \?\'", CSV)
-#                re_comma_sp=re.search(", ", CSV)
-                #if RES and SPACE_COMMA == 'N':
-#                if re_comma_sp:
-#                    print(" Comma and space issue, line " + str(line_number))
-#                    file_error="Y"
-
                 Rec=str(line).split(', ')
 
                 if "usr_prod_comb_" in file:
@@ -223,6 +222,42 @@ for r, d, f in os.walk(thisdir):
                 else:
                     print("Unknown file " + file)
                     file_error="Y"
+
+                #Completeness check
+                if "usr_offg_comb_" in file:
+                    First_Val=Rec[0].strip('\'')
+                    First_Val=First_Val.strip('[\'')
+                    Chars_11_Check=Rec[11].strip('\'')
+
+                    if Read_First_Line == "Y":
+                        if First_Val != Prev_Val:
+                            del Value_Array[0]
+                            #print("")
+                            if Chars_8_Check_Num > 8:
+                                print(" Value: " + Prev_Val + "  has more than 8 records" + ", Record count = " + str(Chars_8_Check_Num))
+
+                            if Chars_8_Check_Num < 8:
+                                print(" Value " + Prev_Val + "  has less than 8 records" + ", Record count = " + str(Chars_8_Check_Num))
+
+                            LEN=len(Value_Array)
+                            if LEN != 0:
+                                print(" Values not found for " + Prev_Val + ": " + str(Value_Array))                  
+
+                            #reset
+                            Chars_8_Check_Num=0
+                            Value_Array=['DUMMY12789','BS', 'BBC', 'BC', 'BST', 'BT', 'CU', 'PFG', 'SOD']
+
+                    try:
+                        Array_Num=Value_Array.index(Chars_11_Check)
+                        del Value_Array[Array_Num]
+                        if Array_Num == 0:
+                            raise ValueError
+                    except ValueError:
+                        print(" Unknown value found in column 12, line " + str(line_number) + " ,file will NOT fail though. Value = " + Chars_11_Check)
+
+                    Read_First_Line="Y"   
+                    Prev_Val = First_Val
+                    Chars_8_Check_Num=Chars_8_Check_Num+1
                     
                 line_number= line_number + 1
             
@@ -239,6 +274,19 @@ for r, d, f in os.walk(thisdir):
                 ProbFiles=(ProbFiles + JName + JNum + ".csv\n")
                 
             read_file.close()
+
+            if "usr_offg_comb_" in file:
+                del Value_Array[0]
+                LEN=len(Value_Array)
+                if LEN != 0:
+                    print(" Values not found for " + Prev_Val + ": " + str(Value_Array))
+
+                if Chars_8_Check_Num > 8:
+                    print(" Value: " + Prev_Val + "  has more than 8 records" + ", Record count = " + str(Chars_8_Check_Num))
+
+                if Chars_8_Check_Num < 8:
+                    print(" Value " + Prev_Val + "  has less than 8 records" + ", Record count = " + str(Chars_8_Check_Num))
+                              
     break  
 
 unique_list=set(file_list)
